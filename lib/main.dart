@@ -46,9 +46,10 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState(){
     super.initState();
-    LoadWeatherInfos();
+    LoadLocalWeatherInfos();
   }
-  Future<void> LoadWeatherInfos() async{
+
+  Future<void> LoadLocalWeatherInfos() async{
     final prefs = await SharedPreferences.getInstance();
     String? jsonString = prefs.getString('weatherInfos');
     if(jsonString==null) return;
@@ -81,10 +82,12 @@ class _MyAppState extends State<MyApp> {
         break;
       }
     }
+    storeLocalWeatherInfos();
   }
+
   void _pageTransition() async{
     await analytics.logEvent(name: 'page_transition');
-    setState(() async{
+    setState((){
       _currentPage=1-_currentPage;
       _controller.animateToPage(_currentPage, duration: Duration(milliseconds: 100), curve: Curves.easeInOut);
       print(_currentPage);
@@ -97,16 +100,20 @@ class _MyAppState extends State<MyApp> {
           showToast("Already added");
           return;
         }
-
         weatherInfos.add(Map<String,dynamic>.from(weatherInfo));
-          final prefs = await SharedPreferences.getInstance();
-          String? jsonString = jsonEncode(weatherInfos);
-          prefs.setString('weatherInfos', jsonString);
+        storeLocalWeatherInfos();
           showToast("Location added");
           weatherInfo['name']=null;
         }
       }
     );
+  }
+
+  void storeLocalWeatherInfos()async{
+    final prefs = await SharedPreferences.getInstance();
+    String? jsonString = jsonEncode(weatherInfos);
+    prefs.setString('weatherInfos', jsonString);
+    print('stored in local storage');
   }
   void storeTappedLocation(Map<String,dynamic> location){
     tappedLocation = location;

@@ -15,7 +15,10 @@ class page1 extends StatefulWidget {
   State<page1> createState() => _page1State();
 }
 
-class _page1State extends State<page1> {
+class _page1State extends State<page1> with AutomaticKeepAliveClientMixin{
+  @override
+  bool get wantKeepAlive => true;
+
   final weatherApiKey = dotenv.env['WEATHER_API_KEY'];
   Map<String,dynamic> tappedLocation = {
     'name':null,
@@ -24,7 +27,7 @@ class _page1State extends State<page1> {
   };
   Timer? pollingTimer;
   bool isPolling = false;
-
+  bool start = true;
   Future<void> updateWeatherInfo(Map<String,dynamic> info) async{
     print("fetching weather...1");
     print("fetching weather...2");
@@ -35,7 +38,7 @@ class _page1State extends State<page1> {
       final lon = info['longitude'];
       final lat = info['latitude'];
       final url = Uri.parse('https://api.weatherapi.com/v1/forecast.json?key=$weatherApiKey&q=$lat,$lon&days=1&aqi=yes&alerts=yes',);
-      final response = await http.get(url).timeout(Duration(minutes: 10));
+      final response = await http.get(url).timeout(Duration(seconds: 10));
       if(response.statusCode == 200){
         final data = jsonDecode(response.body);
         //final location = data['location'];
@@ -59,11 +62,21 @@ class _page1State extends State<page1> {
     }
   }
 
+  void storeLocalWeatherInfos()async{
+    final prefs = await SharedPreferences.getInstance();
+    String? jsonString = jsonEncode(widget.storedInfos);
+    prefs.setString('weatherInfos', jsonString);
+    print(prefs.getString('weatherInfos'));
+    print('stored in local SStorage');
+  }
+
   void startLoop() async{
+    if(widget.storedInfos.isEmpty) return;
     for(var info in widget.storedInfos){
       await updateWeatherInfo(info);
       print('initing weather info');
     }
+    storeLocalWeatherInfos();
   }
 
   @override
@@ -71,7 +84,13 @@ class _page1State extends State<page1> {
     print("initing page...");
     super.initState();
     widget.controller.addListener(restartTimer);
-    startLoop();
+    if(start){
+      print("launch...");
+      start = false;
+      Future.delayed(Duration(seconds: 5),(){
+        if(widget.storedInfos.isNotEmpty)startLoop();
+      });
+    }
     startPolling();
   }
   void restartTimer(){
@@ -127,6 +146,7 @@ class _page1State extends State<page1> {
   }
 
   Widget build(BuildContext context) {
+    super.build(context);
     return RefreshIndicator(
       child: Scaffold(
       backgroundColor: Colors.white,
